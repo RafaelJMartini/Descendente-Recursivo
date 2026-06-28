@@ -1,98 +1,4 @@
-#define TKId 1
-#define TKVoid 2
-#define TKInt 3
-#define TKFloat 4
-#define TKVirgula 5
-#define TKDoisPontos 6
-#define TKAbrePar 7
-#define TKFechaPar 8
-#define TKAtrib 9
-#define TKPontoEVirgula 10
-#define TKAbreChaves 11
-#define TKFechaChaves 12
-#define TKMais 13
-#define TKDuploMais 14
-#define TKProd 15
-#define TKChar 16
-#define TKSub 17
-#define TKAbreColchete 18
-#define TKFechaColchete 19
-#define TKAtribMais 20
-#define TKDouble 21
-#define TKCteInt 22
-#define TKElse 23
-#define TKIf 24
-#define TKString 25
-#define TKFimArquivo 26
-#define TKPonto 27
-#define TKNumDouble 28
-#define TKNegate 29
-#define TKUnequal 30
-#define TKNumFloat 31
-#define TKEComercial 32
-#define TKAND 33
-#define TKEIgual 34
-#define TKMaior 35
-#define TKShiftR 36
-#define TKShiftL 37
-#define TKMaiorIgual 38
-#define TKShiftRIgual 39
-#define TKMenorIgual 40
-#define TKMenor 41
-#define TKShiftLIgual 42
-#define TKOR 43
-#define TKORIgual 44
-#define TKPipe 45
-#define TKTypedef 46
-#define TKStruct 47
-#define TKTrue 48
-#define TKFalse 49
-#define TKSizeof 50
-#define TKDuploMenos 51
-#define TKArrow 52
-#define TKDiferenca 53
-#define TKDiferencaIgual 54
-#define TKDivisao 55
-#define TKXOR 56
-#define TKComplemento1 57
-#define TKXORIgual 58
-#define TKTernario 59
-#define TKReturn 60
-#define TKFor 61
-#define TKWhile 62
-#define TKDo 63
-#define TKSwitch 64
-#define TKCase 65
-#define TKBreak 66
-#define TKDefault 67
-#define TKUnion 68
-#define TKEnum 69
-#define TKGoto 70
-#define TKShort 71
-#define TKLong 72
-#define TKUnsigned 73
-#define TKSigned 74
-#define TKCompara 75
-
-#define false 0
-#define true 1
-
-#include <string.h>
-#include <stdio.h>
-#include <conio.h>
-#include <stdlib.h>
-
-typedef struct
-{
-    int tipo;
-    char nome[50];
-    char lexema[50];
-    int linha;
-    int coluna;
-
-} Token;
-
-char nome[][20]={"","TKId","TKvoid","TKInt","TKFloat",
+char nome[100][20]={"","TKId","TKvoid","TKInt","TKFloat",
 "TKVirgula","TKDoisPontos","TKAbrePar"
 ,"TKFechaPar","TKAtrib","TKPontoEVirgula"
 ,"TKAbreChaves","TKFechaChaves"
@@ -109,14 +15,13 @@ char nome[][20]={"","TKId","TKvoid","TKInt","TKFloat",
 ,"TKDiferenca","TKDiferencaIgual","TKDivisao"
 ,"TKXOR","TKComplemento1","TKXORIgual","TKTernario"
 ,"TKReturn","TKFor","TKWhile","TKDo","TKSwitch","TKCase","TKBreak","TKDefault","TKUnion","TKEnum","TKGoto"
-,"TKShort", "TKLong", "TKUnsigned","TKSigned","TKCompara"};
+,"TKShort", "TKLong", "TKUnsigned","TKSigned"};
 
 int pos = 0;
 
 int tk;
 char lex[20];
 int lin=1;
-int col=1;
 FILE *arqin;
 char c; // último caracter lido do arquivo
 
@@ -203,14 +108,8 @@ if (feof(arqin)) {
    return;
    }
 fread(&c,1,1,arqin);
-if (c=='\n') {
-    lin++;
-    col = 1;
-}
-else
-{
-    col++;
-}
+if (c=='\n') lin++;
+//printf("Leu caracter %c\n",c);
 }
 
 void getToken()
@@ -294,21 +193,7 @@ printf("char=%c pos=%d\n",c,pos);*/
                     tk=TKString;
                     return;
              }
-             if (c=='='){
-                proxC();
-                if (c=='='){
-                    lex[posl++]='=';
-                    lex[posl]='\0';
-                    proxC();
-                    tk = TKCompara;
-                    return;
-                }
-                else{
-                    lex[posl]='\0';
-                    tk=TKAtrib;
-                }
-                return;
-             }
+             if (c=='='){lex[posl]='\0';proxC();tk=TKAtrib;/*printf("Reconheceu token TKAtrib\n");*/return;}
 
              if (c=='+'){
                    proxC();
@@ -491,41 +376,16 @@ printf("char=%c pos=%d\n",c,pos);*/
 
 int main()
 {
-arqin=fopen("C:\\prog.c","rb");
+arqin=fopen("C:\\Users\\Administrador\\Downloads\\teste\\prog.c","rb");
 if (!arqin) {
 printf("Erro na abertura do fonte.\n");
 return 0;
 }
-FILE *arqToken = fopen("tokens.dat","wb");
-
-
-
-
 proxC(); // lê primeiro caracter do arquivo
 getToken(); // lê primeiro token
 while (tk!=TKFimArquivo)
    {
-    Token token;
-
-    token.tipo = tk;
-    strcpy(token.lexema, lex);
-    strcpy(token.nome, nome[tk]);
-    token.linha = lin;
-    token.coluna = col;
-    fwrite(&token,sizeof(Token),1,arqToken);
-
-    printf("linha: %d tk=%d-%s lexema=%s\n",lin,tk,nome[tk],lex);
-    getToken();
+   printf("linha: %d tk=%d-%s lexema=%s\n",lin,tk,nome[tk],lex);
+   getToken();
    }
-Token token;
-token.tipo = TKFimArquivo;
-strcpy(token.lexema,"EOF");
-strcpy(token.nome, "TKFimArquivo");
-fwrite(&token,sizeof(Token),1,arqToken);
-
-fclose(arqToken);
-fclose(arqin);
-int a;
-printf("pressione qualquer tecla para sair");
-scanf("%d",&a);
 }

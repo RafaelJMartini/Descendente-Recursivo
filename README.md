@@ -1,0 +1,1 @@
+Colocar o arquivo a ser lido nomeado como prog.c na raiz do disco C (C:\prog.c) e executar o arquivo main.exe.
