@@ -54,8 +54,8 @@
 #define TKSizeof 50
 #define TKDuploMenos 51
 #define TKArrow 52
-#define TKDiferenca 53
-#define TKDiferencaIgual 54
+#define TKDiferenca 53       // '%' (modulo)
+#define TKDiferencaIgual 54  // '%='
 #define TKDivisao 55
 #define TKXOR 56
 #define TKComplemento1 57
@@ -76,7 +76,7 @@
 #define TKLong 72
 #define TKUnsigned 73
 #define TKSigned 74
-#define TKCompara 75
+#define TKCompara 75  // '=='
 
 typedef struct
 {
@@ -91,13 +91,72 @@ typedef struct
 Token lookahead;
 FILE *arquivo;
 
+// Protótipos de todas as funções
+void Programa();
+void ListaDeclaracoes();
+void Declaracao();
+void DeclaracaoFuncao();
+void DeclaracaoVariavel();
+void DeclaracaoVariavelLocal();
+void InicializacaoOpt();
+void Declarador();
+void PointerOpt();
+void ParametrosOpt();
+void Parametros();
+void Parametro();
+void ArrayOpt();
+void ArrayParametroOpt();
+void Tipo();
+void TipoBase();
+void Bloco();
+void ListaComandos();
+void Comando();
+void If();
+void While();
+void DoWhile();
+void For();
+void ExpressaoOpt();
+void Expressao();
+void ExpressaoLinha();
+void Atribuicao();
+void AtribuicaoLinha();
+void LogicoOU();
+void LogicoOULinha();
+void LogicoE();
+void LogicoELinha();
+void BitOr();
+void BitOrLinha();
+void BitXor();
+void BitXorLinha();
+void BitAnd();
+void BitAndLinha();
+void Igualdade();
+void IgualdadeLinha();
+void Relacional();
+void RelacionalLinha();
+void Shift();
+void ShiftLinha();
+void Aditiva();
+void AditivaLinha();
+void Multiplicativa();
+void MultiplicativaLinha();
+void Unaria();
+void Primaria();
+void Sufixo();
+void ArrayAcesso();
+void ArgumentosOpt();
+void Argumentos();
+void ArgumentosLinha();
+
+// -----------------------------------------------------------------------
+
 Token nextToken()
 {
     Token t;
 
     if (fread(&t, sizeof(Token), 1, arquivo) != 1)
     {
-        t.tipo = TKFimArquivo ;
+        t.tipo = TKFimArquivo;
         strcpy(t.nome, "TKFimArquivo");
         strcpy(t.lexema, "EOF");
         t.linha = -1;
@@ -109,23 +168,27 @@ Token nextToken()
 
 void erro(char *esperado)
 {
-    printf("\nErro sintatico\n");
+    printf("\n==============================\n");
+    printf("ERRO SINTATICO\n");
+    printf("==============================\n");
 
-    printf("Linha : %d\n", lookahead.linha);
-    printf("Coluna: %d\n", lookahead.coluna);
+    printf("Linha  : %d\n", lookahead.linha);
+    printf("Coluna : %d\n\n", lookahead.coluna);
 
     printf("Esperado : %s\n", esperado);
+    printf("Encontrado: %s (%d) | lexema: '%s'\n",
+           lookahead.nome,
+           lookahead.tipo,
+           lookahead.lexema);
 
-    printf("Encontrado: %s (%s)\n",
-            lookahead.nome,
-            lookahead.lexema);
-
+    printf("==============================\n");
     exit(1);
 }
 
-// Consome token
-void match(int esperado){
-    if(lookahead.tipo == esperado){
+void match(int esperado)
+{
+    if (lookahead.tipo == esperado)
+    {
         lookahead = nextToken();
         return;
     }
@@ -136,18 +199,49 @@ void match(int esperado){
     printf("Linha  : %d\n", lookahead.linha);
     printf("Coluna : %d\n\n", lookahead.coluna);
 
-    printf("Esperado: (%d)\n", esperado);
+    printf("Esperado: token (%d)\n", esperado);
     printf("Encontrado: %s (%d) | lexema: '%s'\n",
            lookahead.nome,
            lookahead.tipo,
            lookahead.lexema);
 
     printf("==============================\n");
-
     exit(1);
 }
 
-//---------------------------Produções---------------------------
+// Verifica se o token atual pode iniciar um Tipo
+int ehTipo()
+{
+    return lookahead.tipo == TKVoid ||
+           lookahead.tipo == TKInt    ||
+           lookahead.tipo == TKLong   ||
+           lookahead.tipo == TKUnsigned ||
+           lookahead.tipo == TKFloat  ||
+           lookahead.tipo == TKDouble ||
+           lookahead.tipo == TKChar;
+}
+
+// Verifica se o token atual pode iniciar uma Expressao
+int ehInicioExpressao()
+{
+    return lookahead.tipo == TKId         ||
+           lookahead.tipo == TKCteInt     ||
+           lookahead.tipo == TKNumFloat   ||
+           lookahead.tipo == TKNumDouble  ||
+           lookahead.tipo == TKString     ||
+           lookahead.tipo == TKAbrePar    ||
+           lookahead.tipo == TKSub        ||   // -expr
+           lookahead.tipo == TKNegate     ||   // !expr
+           lookahead.tipo == TKComplemento1 || // ~expr
+           lookahead.tipo == TKDuploMais  ||   // ++expr
+           lookahead.tipo == TKDuploMenos ||   // --expr
+           lookahead.tipo == TKEComercial ||   // &var
+           lookahead.tipo == TKProd;           // *ptr
+}
+
+// -----------------------------------------------------------------------
+//  Produções
+// -----------------------------------------------------------------------
 
 void Programa()
 {
@@ -156,88 +250,106 @@ void Programa()
 
 void ListaDeclaracoes()
 {
-    while (lookahead.tipo == TKInt ||
-           lookahead.tipo == TKLong ||
-           lookahead.tipo == TKUnsigned ||
-           lookahead.tipo == TKFloat ||
-           lookahead.tipo == TKDouble ||
-           lookahead.tipo == TKChar)
+    while (ehTipo())
     {
         Declaracao();
     }
 }
 
+// Declaração no escopo global: variável ou função
 void Declaracao()
 {
     Tipo();
-
     PointerOpt();
-
     match(TKId);
 
-    if (lookahead.tipo == TKAbrePar){ // ex. int main(
+    if (lookahead.tipo == TKAbrePar)
         DeclaracaoFuncao();
-    }
-    else{
+    else
         DeclaracaoVariavel();
-    }
 }
 
 void DeclaracaoFuncao()
 {
     match(TKAbrePar);
-
     ParametrosOpt();
-
     match(TKFechaPar);
-
     Bloco();
 }
 
+// Continuação de declaração de variável GLOBAL
+// (Tipo, PointerOpt e id já foram consumidos em Declaracao)
 void DeclaracaoVariavel()
 {
     ArrayOpt();
+    InicializacaoOpt(); // FIX: primeiro declarador também pode ter inicialização
 
     while (lookahead.tipo == TKVirgula)
     {
         match(TKVirgula);
-
         Declarador();
     }
 
     match(TKPontoEVirgula);
 }
 
+// Declaração de variável LOCAL (dentro de bloco)
+// Consome Tipo, PointerOpt, id e depois o restante
+void DeclaracaoVariavelLocal()
+{
+    Tipo();       // FIX: consumir Tipo dentro do bloco
+    PointerOpt(); // FIX: consumir ponteiros opcionais
+    match(TKId);  // FIX: consumir o identificador
+
+    ArrayOpt();
+    InicializacaoOpt();
+
+    while (lookahead.tipo == TKVirgula)
+    {
+        match(TKVirgula);
+        Declarador();
+    }
+
+    match(TKPontoEVirgula);
+}
+
+// FIX: aceita tanto "= expr" simples quanto "= { expr, ... }" para arrays
 void InicializacaoOpt()
 {
     if (lookahead.tipo == TKAtrib)
     {
         match(TKAtrib);
-        match(TKAbreChaves);
 
-        if (lookahead.tipo != TKFechaChaves)
+        if (lookahead.tipo == TKAbreChaves)
         {
-            Expressao();
+            // inicialização de array/struct: = { v1, v2, ... }
+            match(TKAbreChaves);
 
-            while (lookahead.tipo == TKVirgula)
+            if (lookahead.tipo != TKFechaChaves)
             {
-                match(TKVirgula);
                 Expressao();
+                while (lookahead.tipo == TKVirgula)
+                {
+                    match(TKVirgula);
+                    Expressao();
+                }
             }
-        }
 
-        match(TKFechaChaves);
+            match(TKFechaChaves);
+        }
+        else
+        {
+            // inicialização simples: = expr
+            Expressao();
+        }
     }
 }
 
 void Declarador()
 {
     PointerOpt();
-
     match(TKId);
-
     ArrayOpt();
-
     InicializacaoOpt();
 }
 
@@ -251,12 +363,7 @@ void PointerOpt()
 
 void ParametrosOpt()
 {
-    if (lookahead.tipo == TKInt ||
-        lookahead.tipo == TKLong ||
-        lookahead.tipo == TKUnsigned ||
-        lookahead.tipo == TKFloat ||
-        lookahead.tipo == TKDouble ||
-        lookahead.tipo == TKChar)
+    if (ehTipo())
     {
         Parametros();
     }
@@ -269,7 +376,6 @@ void Parametros()
     while (lookahead.tipo == TKVirgula)
     {
         match(TKVirgula);
-
         Parametro();
     }
 }
@@ -277,11 +383,8 @@ void Parametros()
 void Parametro()
 {
     Tipo();
-
     PointerOpt();
-
     match(TKId);
-
     ArrayParametroOpt();
 }
 
@@ -319,6 +422,10 @@ void TipoBase()
 {
     switch (lookahead.tipo)
     {
+        case TKVoid:
+            match(TKVoid);
+            break;
+
         case TKInt:
             match(TKInt);
             break;
@@ -326,11 +433,9 @@ void TipoBase()
         case TKLong:
             match(TKLong);
 
-            // long long
             if (lookahead.tipo == TKLong)
                 match(TKLong);
 
-            // long int ou long long int
             if (lookahead.tipo == TKInt)
                 match(TKInt);
 
@@ -349,42 +454,43 @@ void TipoBase()
             break;
 
         default:
-            erro("tipo");
+            erro("tipo (int, long, float, double, char)");
     }
 }
 
 void Bloco()
 {
     match(TKAbreChaves);
-
     ListaComandos();
-
     match(TKFechaChaves);
 }
 
 void ListaComandos()
 {
-    while (lookahead.tipo == TKIf ||
-           lookahead.tipo == TKWhile ||
-           lookahead.tipo == TKDo ||
-           lookahead.tipo == TKFor ||
+    // FIX: expandido com TKReturn, TKBreak, TKString, TKDuploMais, TKDuploMenos, TKEComercial, TKProd
+    while (lookahead.tipo == TKIf       ||
+           lookahead.tipo == TKWhile    ||
+           lookahead.tipo == TKDo       ||
+           lookahead.tipo == TKFor      ||
+           lookahead.tipo == TKReturn   ||
+           lookahead.tipo == TKBreak    ||
            lookahead.tipo == TKAbreChaves ||
 
-           lookahead.tipo == TKInt ||
-           lookahead.tipo == TKLong ||
-           lookahead.tipo == TKUnsigned ||
-           lookahead.tipo == TKFloat ||
-           lookahead.tipo == TKDouble ||
-           lookahead.tipo == TKChar ||
+           ehTipo()                     ||
 
-           lookahead.tipo == TKId ||
-           lookahead.tipo == TKCteInt ||
-           lookahead.tipo == TKNumFloat ||
-           lookahead.tipo == TKNumDouble ||
-           lookahead.tipo == TKAbrePar ||
-           lookahead.tipo == TKSub ||          // -
-           lookahead.tipo == TKNegate ||       // !
-           lookahead.tipo == TKComplemento1)   // ~
+           lookahead.tipo == TKId           ||
+           lookahead.tipo == TKCteInt       ||
+           lookahead.tipo == TKNumFloat     ||
+           lookahead.tipo == TKNumDouble    ||
+           lookahead.tipo == TKString       ||
+           lookahead.tipo == TKAbrePar      ||
+           lookahead.tipo == TKSub          ||
+           lookahead.tipo == TKNegate       ||
+           lookahead.tipo == TKComplemento1 ||
+           lookahead.tipo == TKDuploMais    ||
+           lookahead.tipo == TKDuploMenos   ||
+           lookahead.tipo == TKEComercial   ||
+           lookahead.tipo == TKProd)
     {
         Comando();
     }
@@ -414,16 +520,31 @@ void Comando()
             Bloco();
             break;
 
+        // FIX: return e break tratados explicitamente
+        case TKReturn:
+            match(TKReturn);
+            if (lookahead.tipo != TKPontoEVirgula)
+                Expressao();
+            match(TKPontoEVirgula);
+            break;
+
+        case TKBreak:
+            match(TKBreak);
+            match(TKPontoEVirgula);
+            break;
+
+        // FIX: declarações locais passam por DeclaracaoVariavelLocal()
         case TKInt:
         case TKLong:
         case TKUnsigned:
         case TKFloat:
         case TKDouble:
         case TKChar:
-            DeclaracaoVariavel();
+            DeclaracaoVariavelLocal();
             break;
 
         default:
+            // expressão seguida de ';'
             Expressao();
             match(TKPontoEVirgula);
             break;
@@ -434,9 +555,7 @@ void If()
 {
     match(TKIf);
     match(TKAbrePar);
-
     Expressao();
-
     match(TKFechaPar);
 
     Comando();
@@ -452,32 +571,26 @@ void While()
 {
     match(TKWhile);
     match(TKAbrePar);
-
     Expressao();
-
     match(TKFechaPar);
-
     Comando();
 }
 
 void DoWhile()
 {
     match(TKDo);
-
     Comando();
-
     match(TKWhile);
     match(TKAbrePar);
-
     Expressao();
-
     match(TKFechaPar);
     match(TKPontoEVirgula);
 }
 
 void ExpressaoOpt()
 {
-    if (lookahead.tipo != TKPontoEVirgula)
+    if (lookahead.tipo != TKPontoEVirgula &&
+        lookahead.tipo != TKFechaPar)
         Expressao();
 }
 
@@ -486,8 +599,16 @@ void For()
     match(TKFor);
     match(TKAbrePar);
 
-    ExpressaoOpt();
-    match(TKPontoEVirgula);
+    // Inicialização: pode ser declaração ou expressão
+    if (ehTipo())
+    {
+        DeclaracaoVariavelLocal();  // já consome o ';'
+    }
+    else
+    {
+        ExpressaoOpt();
+        match(TKPontoEVirgula);
+    }
 
     ExpressaoOpt();
     match(TKPontoEVirgula);
@@ -495,9 +616,12 @@ void For()
     ExpressaoOpt();
 
     match(TKFechaPar);
-
     Comando();
 }
+
+// -----------------------------------------------------------------------
+//  Expressões
+// -----------------------------------------------------------------------
 
 void Expressao()
 {
@@ -524,11 +648,14 @@ void AtribuicaoLinha()
 {
     switch (lookahead.tipo)
     {
-        case TKAtrib:
-        case TKAtribMais:
-        case TKDiferencaIgual:
-        case TKShiftRIgual:
-        case TKShiftLIgual:
+        case TKAtrib:          // =
+        case TKAtribMais:      // +=
+        case TKDiferencaIgual: // %=
+        case TKShiftRIgual:    // >>=
+        case TKShiftLIgual:    // <<=
+        case TKORIgual:        // |=   FIX: adicionados
+        case TKEIgual:         // &=   FIX
+        case TKXORIgual:       // ^=   FIX
             match(lookahead.tipo);
             Atribuicao();
             break;
@@ -619,6 +746,7 @@ void Igualdade()
     IgualdadeLinha();
 }
 
+// FIX: era TKDiferenca (%), agora usa TKUnequal (!=) e TKCompara (==)
 void IgualdadeLinha()
 {
     while (lookahead.tipo == TKCompara ||
@@ -637,8 +765,8 @@ void Relacional()
 
 void RelacionalLinha()
 {
-    while (lookahead.tipo == TKMenor ||
-           lookahead.tipo == TKMaior ||
+    while (lookahead.tipo == TKMenor     ||
+           lookahead.tipo == TKMaior     ||
            lookahead.tipo == TKMenorIgual ||
            lookahead.tipo == TKMaiorIgual)
     {
@@ -685,17 +813,19 @@ void Multiplicativa()
     MultiplicativaLinha();
 }
 
+// FIX: era TKDiferenca no lugar de TKDivisao/módulo — agora correto
 void MultiplicativaLinha()
 {
-    while (lookahead.tipo == TKProd ||
-           lookahead.tipo == TKDivisao ||
-           lookahead.tipo == TKDiferenca)
+    while (lookahead.tipo == TKProd    ||  // *
+           lookahead.tipo == TKDivisao ||  // /
+           lookahead.tipo == TKDiferenca)  // % (modulo)
     {
         match(lookahead.tipo);
         Unaria();
     }
 }
 
+// FIX: adicionados pré-incremento (++x) e pré-decremento (--x)
 void Unaria()
 {
     switch (lookahead.tipo)
@@ -715,12 +845,33 @@ void Unaria()
             Unaria();
             break;
 
+        case TKDuploMais:
+            match(TKDuploMais);
+            Unaria();
+            break;
+
+        case TKDuploMenos:
+            match(TKDuploMenos);
+            Unaria();
+            break;
+
+        case TKEComercial:  // endereço: &var
+            match(TKEComercial);
+            Unaria();
+            break;
+
+        case TKProd:        // deref: *ptr
+            match(TKProd);
+            Unaria();
+            break;
+
         default:
             Primaria();
             break;
     }
 }
 
+// FIX: adicionado TKString como literal primário
 void Primaria()
 {
     if (lookahead.tipo == TKId)
@@ -728,11 +879,15 @@ void Primaria()
         match(TKId);
         Sufixo();
     }
-    else if (lookahead.tipo == TKCteInt ||
+    else if (lookahead.tipo == TKCteInt  ||
              lookahead.tipo == TKNumFloat ||
              lookahead.tipo == TKNumDouble)
     {
         match(lookahead.tipo);
+    }
+    else if (lookahead.tipo == TKString) // FIX: literal string (ex.: printf("..."))
+    {
+        match(TKString);
     }
     else if (lookahead.tipo == TKAbrePar)
     {
@@ -742,7 +897,7 @@ void Primaria()
     }
     else
     {
-        erro("expressao primaria");
+        erro("expressao primaria (id, numero, string ou '(')");
     }
 }
 
@@ -750,14 +905,42 @@ void Sufixo()
 {
     if (lookahead.tipo == TKAbrePar)
     {
+        // chamada de função: id(args)
         match(TKAbrePar);
         ArgumentosOpt();
         match(TKFechaPar);
+        // FIX: após chamada ainda pode haver sufixo (ex.: f()[], f()())
+        Sufixo();
     }
-    else
+    else if (lookahead.tipo == TKAbreColchete)
     {
         ArrayAcesso();
     }
+    else if (lookahead.tipo == TKPonto)
+    {
+        // acesso a membro: obj.campo
+        match(TKPonto);
+        match(TKId);
+        Sufixo();
+    }
+    else if (lookahead.tipo == TKArrow)
+    {
+        // acesso via ponteiro: ptr->campo
+        match(TKArrow);
+        match(TKId);
+        Sufixo();
+    }
+    else if (lookahead.tipo == TKDuploMais)
+    {
+        // pós-incremento: x++
+        match(TKDuploMais);
+    }
+    else if (lookahead.tipo == TKDuploMenos)
+    {
+        // pós-decremento: x--
+        match(TKDuploMenos);
+    }
+    // ε — sem sufixo
 }
 
 void ArrayAcesso()
@@ -768,6 +951,7 @@ void ArrayAcesso()
         Expressao();
         match(TKFechaColchete);
     }
+    Sufixo();
 }
 
 void ArgumentosOpt()
@@ -793,8 +977,7 @@ void ArgumentosLinha()
     }
 }
 
-
-//---------------------------Fim Produções---------------------------
+// -----------------------------------------------------------------------
 
 int main()
 {
@@ -802,7 +985,7 @@ int main()
 
     if (arquivo == NULL)
     {
-        printf("Erro ao abrir arquivo.\n");
+        printf("Erro ao abrir arquivo tokens.dat\n");
         return 1;
     }
 
@@ -816,6 +999,5 @@ int main()
     printf("Programa correto!\n");
 
     fclose(arquivo);
-
     return 0;
 }

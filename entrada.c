@@ -22,75 +22,29 @@ int pos = 0;
 int tk;
 char lex[20];
 int lin=1;
-FILE *arqin;
-char c; // último caracter lido do arquivo
-
-struct pal_res{char palavra[20]; int tk;};
-struct pal_res lista_pal[]={{"void",TKVoid},
-                  {"int",TKInt},
-                  {"float",TKFloat},
-                  {"char",TKChar},
-                  {"double",TKDouble},
-                  {"else",TKElse},
-                  {"if",TKIf},
-                  {"struct",TKStruct},
-                  {"typedef",TKTypedef},
-                  {"true",TKTrue},
-                  {"false",TKFalse},
-                  {"sizeof",TKSizeof},
-                  {"return",TKReturn},
-                  {"for",TKFor},
-                  {"while",TKWhile},
-                  {"do",TKDo},
-                  {"switch",TKSwitch},
-                  {"case",TKCase},
-                  {"break",TKBreak},
-                  {"default",TKDefault},
-                  {"union",TKUnion},
-                  {"enum",TKEnum},
-                  {"goto",TKGoto},
-                  {"signed",TKSigned},
-                  {"unsigned",TKUnsigned},
-                  {"short",TKShort},
-                  {"long",TKLong},
-                  {"fimtabela",TKId}
-                  };
+char c;
 
 int palavra_reservada(char lex[])
 {
 int postab=0;
-while (strcmp("fimtabela",lista_pal[postab].palavra)!=0)
+while (strcmp("fimtabela",lista_pal[postab])!=0)
    {
-   if (strcmp(lex,lista_pal[postab].palavra)==0)
-      return lista_pal[postab].tk;
+   if (strcmp(lex,lista_pal[postab])==0)
+      return lista_pal[postab];
    postab++;
    }
 return TKId;
 }
 
-
-void getToken(); // protótipos
-void proxC();
-
-// variáveis globais para retrocesso
-
-typedef struct contexto{long posglobal;
-               int tkant;
-               char cant;
-               char lexant[20];} tcontexto;
-
-tcontexto pilhacon[1000];
 int topcontexto=0;
 
 void marcaPosToken() {
-pilhacon[topcontexto].posglobal=ftell(arqin);
-pilhacon[topcontexto].tkant=tk;
-pilhacon[topcontexto].cant=c;
-    strcpy(pilhacon[topcontexto].lexant,lex);
+pilhacon[topcontexto]=ftell(arqin);
+pilhacon[topcontexto]=tk;
+pilhacon[topcontexto]=c;
+    strcpy(pilhacon[topcontexto],lex);
     topcontexto++;
 }
-
-//Implemente aqui a sua funcao restauraPosToken()
 
 void restauraPosToken() {
     topcontexto--;
@@ -122,8 +76,7 @@ while (!fim)
 /*printf("%s\n",exp1);
 printf("char=%c pos=%d\n",c,pos);*/
    lex[posl++]=c;
-   switch(estado){
-      case 0:if (c>='a' && c<='z' || c>='A' && c<='Z' || c=='_')
+      if (c>='a' && c<='z' || c>='A' && c<='Z' || c=='_')
                 {proxC();estado=1;break;}
              if (c>='0' && c<='9')
                 {proxC();estado=2;tk=TKCteInt;break;}
@@ -352,12 +305,12 @@ printf("char=%c pos=%d\n",c,pos);*/
              printf("Erro léxico: encontrou o caracter %c (%d) na linha %d\n",c,c,lin);
              while (c!='\n') proxC();
              break;
-      case 1:if (c>='a' && c<='z' || c>='A' && c<='Z' || c=='_' || c>='0' && c<='9') {proxC();break;}
+      if (c>='a' && c<='z' || c>='A' && c<='Z' || c=='_' || c>='0' && c<='9') {proxC();break;}
              lex[--posl]='\0';
              tk=palavra_reservada(lex);
              //printf("reconheceu token %s\n",lex);
              return;
-      case 2:
+
             if (c>='0' && c<='9') {proxC();break;}
             if (c == '.' && tk!=TKNumDouble){
                 proxC(); tk=TKNumDouble;break;
@@ -370,7 +323,7 @@ printf("char=%c pos=%d\n",c,pos);*/
             }
             lex[--posl]='\0';
             return;
-      } //switch
+
    }// while
 }// função
 

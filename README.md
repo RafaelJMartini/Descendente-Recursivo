@@ -1,1 +1,5 @@
-Colocar o arquivo a ser lido nomeado como prog.c na raiz do disco C (C:\prog.c) e executar o arquivo main.exe.
+Colocar o código a ser análisado no arquivo entrada.c;
+
+Executar o arquivo lexico/lexico.c
+
+Executar o arquivo sintatico/sintatico.c

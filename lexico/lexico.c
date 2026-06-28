@@ -235,23 +235,23 @@ printf("char=%c pos=%d\n",c,pos);*/
                     while(c != '\n'){
                         proxC();
                     }
+                    getToken();  // <-- troca return por isso
                     return;
                 }
 
                 if (c=='*')
                 {
                     char anterior = 0;
-                    proxC(); // começa a ler depois do *
-
+                    proxC();
                     while (c != EOF) {
                         if (anterior == '*' && c == '/') {
-                            proxC(); // anda depois do /
+                            proxC();
+                            getToken();  // <-- idem aqui
                             return;
                         }
-
                         anterior = c;
                         proxC();
-                     }
+                    }
                 }
                 lex[posl]= '\0';
                 tk=TKDivisao;
@@ -278,22 +278,29 @@ printf("char=%c pos=%d\n",c,pos);*/
                 return;
              }
              if (c=='\''){
-                proxC();
-                char charAnterior = '\0';
-                char charAnteriorAnterior = '\0';
-                    while (!(c == '\'' && (charAnterior != '\\' || charAnteriorAnterior == '\\')))
-                    {
-                        lex[posl++]=c;
-                        charAnteriorAnterior = charAnterior;
-                        charAnterior = c;
-                        proxC();
+                proxC(); // pula o ' de abertura
+                while (1)
+                {
+                    if (c == '\\') {       // encontrou escape
+                        lex[posl++] = c;
+                        proxC();           // consome o '\'
+                        lex[posl++] = c;
+                        proxC();           // consome o char escapado (n, t, ', \ etc.)
+                        continue;
                     }
-                    lex[posl++]='\'';
+                    if (c == '\'') {       // fechamento real
+                        lex[posl++] = '\'';
+                        proxC();
+                        break;
+                    }
+                    lex[posl++] = c;
                     proxC();
-                    lex[posl]='\0';
-                    tk=TKString;
-                    return;
+                }
+                lex[posl] = '\0';
+                tk = TKString;
+                return;
              }
+
              if (c=='='){
                 proxC();
                 if (c=='='){
@@ -308,7 +315,7 @@ printf("char=%c pos=%d\n",c,pos);*/
                     tk=TKAtrib;
                 }
                 return;
-             }
+            }
 
              if (c=='+'){
                    proxC();
@@ -441,7 +448,7 @@ printf("char=%c pos=%d\n",c,pos);*/
              if (c=='!') {
                 proxC();
                 if (c== '='){
-                    lex[posl++]='=';lex[posl]='\0';tk=TKUnequal;return;
+                    lex[posl++]='=';lex[posl]='\0';tk=TKUnequal;proxC();return;
                 }
                 lex[posl]='\0';tk=TKNegate;return;
              }
@@ -459,7 +466,7 @@ printf("char=%c pos=%d\n",c,pos);*/
                     tk = TKAND;proxC();return;
                 }
                 lex[posl]='\0';
-                tk = TKEComercial;proxC();return;
+                tk = TKEComercial;return;
              }
 
 
