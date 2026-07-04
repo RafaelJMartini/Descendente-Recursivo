@@ -9,42 +9,47 @@ char nome[100][20]={"","TKId","TKvoid","TKInt","TKFloat",
 ,"TKNumDouble","TKNegate", "TKUnequal", "TKNumFloat"
 ,"TKEComercial","TKAND","TKEIgual","TKMaior"
 ,"TKShiftR","TKShiftL","TKMaiorIgual","TKShiftRIgual"
-,"TKMenor","TKMenorIgual","TKShiftLIgual"
+,"TKMenorIgual","TKMenor","TKShiftLIgual"
 ,"TKOR","TKORIgual","TKPipe","TKTypedef","TKStruct"
 ,"TKTrue","TKFalse","TKSizeof","TKDuploMenos","TKArrow"
 ,"TKDiferenca","TKDiferencaIgual","TKDivisao"
 ,"TKXOR","TKComplemento1","TKXORIgual","TKTernario"
 ,"TKReturn","TKFor","TKWhile","TKDo","TKSwitch","TKCase","TKBreak","TKDefault","TKUnion","TKEnum","TKGoto"
-,"TKShort", "TKLong", "TKUnsigned","TKSigned"};
+,"TKShort", "TKLong", "TKUnsigned","TKSigned","TKCompara"};
 
 int pos = 0;
 
 int tk;
-char lex[20];
+char lex[50];
 int lin=1;
-char c;
+int col=1;
+char c; // último caracter lido do arquivo
 
 int palavra_reservada(char lex[])
 {
 int postab=0;
-while (strcmp("fimtabela",lista_pal[postab])!=0)
+while (strcmp("fimtabela",lista_pal[postab].palavra)!=0)
    {
-   if (strcmp(lex,lista_pal[postab])==0)
-      return lista_pal[postab];
+   if (strcmp(lex,lista_pal[postab].palavra)==0)
+      return lista_pal[postab].tk;
    postab++;
    }
 return TKId;
 }
 
+// variáveis globais para retrocesso
+
 int topcontexto=0;
 
 void marcaPosToken() {
-pilhacon[topcontexto]=ftell(arqin);
-pilhacon[topcontexto]=tk;
-pilhacon[topcontexto]=c;
-    strcpy(pilhacon[topcontexto],lex);
+pilhacon[topcontexto].posglobal=ftell(arqin);
+pilhacon[topcontexto].tkant=tk;
+pilhacon[topcontexto].cant=c;
+    strcpy(pilhacon[topcontexto].lexant,lex);
     topcontexto++;
 }
+
+//Implemente aqui a sua funcao restauraPosToken()
 
 void restauraPosToken() {
     topcontexto--;
@@ -62,8 +67,14 @@ if (feof(arqin)) {
    return;
    }
 fread(&c,1,1,arqin);
-if (c=='\n') lin++;
-//printf("Leu caracter %c\n",c);
+if (c=='\n') {
+    lin++;
+    col = 1;
+}
+else
+{
+    col++;
+}
 }
 
 void getToken()
@@ -76,7 +87,7 @@ while (!fim)
 /*printf("%s\n",exp1);
 printf("char=%c pos=%d\n",c,pos);*/
    lex[posl++]=c;
-      if (c>='a' && c<='z' || c>='A' && c<='Z' || c=='_')
+      if ((c>='a' && c<='z') || (c>='A' && c<='Z') || c=='_')
                 {proxC();estado=1;break;}
              if (c>='0' && c<='9')
                 {proxC();estado=2;tk=TKCteInt;break;}
@@ -87,23 +98,23 @@ printf("char=%c pos=%d\n",c,pos);*/
                     while(c != '\n'){
                         proxC();
                     }
+                    getToken();  // <-- troca return por isso
                     return;
                 }
 
                 if (c=='*')
                 {
                     char anterior = 0;
-                    proxC(); // começa a ler depois do *
-
+                    proxC();
                     while (c != EOF) {
                         if (anterior == '*' && c == '/') {
-                            proxC(); // anda depois do /
+                            proxC();
+                            getToken();  // <-- idem aqui
                             return;
                         }
-
                         anterior = c;
                         proxC();
-                     }
+                    }
                 }
                 lex[posl]= '\0';
                 tk=TKDivisao;
@@ -130,23 +141,44 @@ printf("char=%c pos=%d\n",c,pos);*/
                 return;
              }
              if (c=='\''){
-                proxC();
-                char charAnterior = '\0';
-                char charAnteriorAnterior = '\0';
-                    while (!(c == '\'' && (charAnterior != '\\' || charAnteriorAnterior == '\\')))
-                    {
-                        lex[posl++]=c;
-                        charAnteriorAnterior = charAnterior;
-                        charAnterior = c;
-                        proxC();
+                proxC(); // pula o ' de abertura
+                while (1)
+                {
+                    if (c == '\\') {       // encontrou escape
+                        lex[posl++] = c;
+                        proxC();           // consome o '\'
+                        lex[posl++] = c;
+                        proxC();           // consome o char escapado (n, t, ', \ etc.)
+                        continue;
                     }
-                    lex[posl++]='\'';
+                    if (c == '\'') {       // fechamento real
+                        lex[posl++] = '\'';
+                        proxC();
+                        break;
+                    }
+                    lex[posl++] = c;
                     proxC();
-                    lex[posl]='\0';
-                    tk=TKString;
-                    return;
+                }
+                lex[posl] = '\0';
+                tk = TKString;
+                return;
              }
-             if (c=='='){lex[posl]='\0';proxC();tk=TKAtrib;/*printf("Reconheceu token TKAtrib\n");*/return;}
+
+             if (c=='='){
+                proxC();
+                if (c=='='){
+                    lex[posl++]='=';
+                    lex[posl]='\0';
+                    proxC();
+                    tk = TKCompara;
+                    return;
+                }
+                else{
+                    lex[posl]='\0';
+                    tk=TKAtrib;
+                }
+                return;
+            }
 
              if (c=='+'){
                    proxC();
@@ -279,7 +311,7 @@ printf("char=%c pos=%d\n",c,pos);*/
              if (c=='!') {
                 proxC();
                 if (c== '='){
-                    lex[posl++]='=';lex[posl]='\0';tk=TKUnequal;return;
+                    lex[posl++]='=';lex[posl]='\0';tk=TKUnequal;proxC();return;
                 }
                 lex[posl]='\0';tk=TKNegate;return;
              }
@@ -297,7 +329,7 @@ printf("char=%c pos=%d\n",c,pos);*/
                     tk = TKAND;proxC();return;
                 }
                 lex[posl]='\0';
-                tk = TKEComercial;proxC();return;
+                tk = TKEComercial;return;
              }
 
 
@@ -305,12 +337,11 @@ printf("char=%c pos=%d\n",c,pos);*/
              printf("Erro léxico: encontrou o caracter %c (%d) na linha %d\n",c,c,lin);
              while (c!='\n') proxC();
              break;
-      if (c>='a' && c<='z' || c>='A' && c<='Z' || c=='_' || c>='0' && c<='9') {proxC();break;}
+             if (c>='a' && c<='z' || c>='A' && c<='Z' || c=='_' || c>='0' && c<='9') {proxC();break;}
              lex[--posl]='\0';
              tk=palavra_reservada(lex);
              //printf("reconheceu token %s\n",lex);
              return;
-
             if (c>='0' && c<='9') {proxC();break;}
             if (c == '.' && tk!=TKNumDouble){
                 proxC(); tk=TKNumDouble;break;
@@ -323,22 +354,43 @@ printf("char=%c pos=%d\n",c,pos);*/
             }
             lex[--posl]='\0';
             return;
-
+      } //switch
    }// while
-}// função
 
 int main()
 {
-arqin=fopen("C:\\Users\\Administrador\\Downloads\\teste\\prog.c","rb");
+arqin=fopen("../entrada.c","rb");
 if (!arqin) {
 printf("Erro na abertura do fonte.\n");
 return 0;
 }
+FILE *arqToken = fopen("../tokens.dat","wb");
+
+
+
+
 proxC(); // lê primeiro caracter do arquivo
 getToken(); // lê primeiro token
 while (tk!=TKFimArquivo)
    {
-   printf("linha: %d tk=%d-%s lexema=%s\n",lin,tk,nome[tk],lex);
-   getToken();
+    token.tipo = tk;
+    strcpy(token.lexema, lex);
+    strcpy(token.nome, nome[tk]);
+    token.linha = lin;
+    token.coluna = col;
+    fwrite(&token,Token,1,arqToken);
+
+    printf("linha: %d tk=%d-%s lexema=%s\n",lin,tk,nome[tk],lex);
+    getToken();
    }
+token.tipo = TKFimArquivo;
+strcpy(token.lexema,"EOF");
+strcpy(token.nome, "TKFimArquivo");
+fwrite(&token,Token,1,arqToken);
+
+fclose(arqToken);
+fclose(arqin);
+int a;
+printf("pressione qualquer tecla para sair");
+scanf("%d",&a);
 }

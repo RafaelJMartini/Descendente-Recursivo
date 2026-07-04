@@ -148,8 +148,6 @@ void ArgumentosOpt();
 void Argumentos();
 void ArgumentosLinha();
 
-// -----------------------------------------------------------------------
-
 Token nextToken()
 {
     Token t;
@@ -209,7 +207,6 @@ void match(int esperado)
     exit(1);
 }
 
-// Verifica se o token atual pode iniciar um Tipo
 int ehTipo()
 {
     return lookahead.tipo == TKVoid ||
@@ -221,7 +218,6 @@ int ehTipo()
            lookahead.tipo == TKChar;
 }
 
-// Verifica se o token atual pode iniciar uma Expressao
 int ehInicioExpressao()
 {
     return lookahead.tipo == TKId         ||
@@ -239,10 +235,6 @@ int ehInicioExpressao()
            lookahead.tipo == TKProd;           // *ptr
 }
 
-// -----------------------------------------------------------------------
-//  Produções
-// -----------------------------------------------------------------------
-
 void Programa()
 {
     ListaDeclaracoes();
@@ -256,7 +248,6 @@ void ListaDeclaracoes()
     }
 }
 
-// Declaração no escopo global: variável ou função
 void Declaracao()
 {
     Tipo();
@@ -277,12 +268,10 @@ void DeclaracaoFuncao()
     Bloco();
 }
 
-// Continuação de declaração de variável GLOBAL
-// (Tipo, PointerOpt e id já foram consumidos em Declaracao)
 void DeclaracaoVariavel()
 {
     ArrayOpt();
-    InicializacaoOpt(); // FIX: primeiro declarador também pode ter inicialização
+    InicializacaoOpt();
 
     while (lookahead.tipo == TKVirgula)
     {
@@ -293,13 +282,11 @@ void DeclaracaoVariavel()
     match(TKPontoEVirgula);
 }
 
-// Declaração de variável LOCAL (dentro de bloco)
-// Consome Tipo, PointerOpt, id e depois o restante
 void DeclaracaoVariavelLocal()
 {
-    Tipo();       // FIX: consumir Tipo dentro do bloco
-    PointerOpt(); // FIX: consumir ponteiros opcionais
-    match(TKId);  // FIX: consumir o identificador
+    Tipo();
+    PointerOpt();
+    match(TKId);
 
     ArrayOpt();
     InicializacaoOpt();
@@ -313,7 +300,6 @@ void DeclaracaoVariavelLocal()
     match(TKPontoEVirgula);
 }
 
-// FIX: aceita tanto "= expr" simples quanto "= { expr, ... }" para arrays
 void InicializacaoOpt()
 {
     if (lookahead.tipo == TKAtrib)
@@ -322,7 +308,6 @@ void InicializacaoOpt()
 
         if (lookahead.tipo == TKAbreChaves)
         {
-            // inicialização de array/struct: = { v1, v2, ... }
             match(TKAbreChaves);
 
             if (lookahead.tipo != TKFechaChaves)
@@ -339,7 +324,6 @@ void InicializacaoOpt()
         }
         else
         {
-            // inicialização simples: = expr
             Expressao();
         }
     }
@@ -467,7 +451,6 @@ void Bloco()
 
 void ListaComandos()
 {
-    // FIX: expandido com TKReturn, TKBreak, TKString, TKDuploMais, TKDuploMenos, TKEComercial, TKProd
     while (lookahead.tipo == TKIf       ||
            lookahead.tipo == TKWhile    ||
            lookahead.tipo == TKDo       ||
@@ -520,7 +503,6 @@ void Comando()
             Bloco();
             break;
 
-        // FIX: return e break tratados explicitamente
         case TKReturn:
             match(TKReturn);
             if (lookahead.tipo != TKPontoEVirgula)
@@ -533,7 +515,6 @@ void Comando()
             match(TKPontoEVirgula);
             break;
 
-        // FIX: declarações locais passam por DeclaracaoVariavelLocal()
         case TKInt:
         case TKLong:
         case TKUnsigned:
@@ -599,7 +580,6 @@ void For()
     match(TKFor);
     match(TKAbrePar);
 
-    // Inicialização: pode ser declaração ou expressão
     if (ehTipo())
     {
         DeclaracaoVariavelLocal();  // já consome o ';'
@@ -619,10 +599,7 @@ void For()
     Comando();
 }
 
-// -----------------------------------------------------------------------
 //  Expressões
-// -----------------------------------------------------------------------
-
 void Expressao()
 {
     Atribuicao();
@@ -653,15 +630,15 @@ void AtribuicaoLinha()
         case TKDiferencaIgual: // %=
         case TKShiftRIgual:    // >>=
         case TKShiftLIgual:    // <<=
-        case TKORIgual:        // |=   FIX: adicionados
-        case TKEIgual:         // &=   FIX
-        case TKXORIgual:       // ^=   FIX
+        case TKORIgual:        // |=
+        case TKEIgual:         // &=
+        case TKXORIgual:       // ^=
             match(lookahead.tipo);
             Atribuicao();
             break;
 
         default:
-            break; // ε
+            break; // vazio
     }
 }
 
@@ -746,7 +723,6 @@ void Igualdade()
     IgualdadeLinha();
 }
 
-// FIX: era TKDiferenca (%), agora usa TKUnequal (!=) e TKCompara (==)
 void IgualdadeLinha()
 {
     while (lookahead.tipo == TKCompara ||
@@ -813,7 +789,6 @@ void Multiplicativa()
     MultiplicativaLinha();
 }
 
-// FIX: era TKDiferenca no lugar de TKDivisao/módulo — agora correto
 void MultiplicativaLinha()
 {
     while (lookahead.tipo == TKProd    ||  // *
@@ -825,7 +800,6 @@ void MultiplicativaLinha()
     }
 }
 
-// FIX: adicionados pré-incremento (++x) e pré-decremento (--x)
 void Unaria()
 {
     switch (lookahead.tipo)
@@ -860,7 +834,7 @@ void Unaria()
             Unaria();
             break;
 
-        case TKProd:        // deref: *ptr
+        case TKProd:        // *ptr
             match(TKProd);
             Unaria();
             break;
@@ -871,7 +845,6 @@ void Unaria()
     }
 }
 
-// FIX: adicionado TKString como literal primário
 void Primaria()
 {
     if (lookahead.tipo == TKId)
@@ -885,7 +858,7 @@ void Primaria()
     {
         match(lookahead.tipo);
     }
-    else if (lookahead.tipo == TKString) // FIX: literal string (ex.: printf("..."))
+    else if (lookahead.tipo == TKString)
     {
         match(TKString);
     }
@@ -909,7 +882,7 @@ void Sufixo()
         match(TKAbrePar);
         ArgumentosOpt();
         match(TKFechaPar);
-        // FIX: após chamada ainda pode haver sufixo (ex.: f()[], f()())
+        // pode haver sufixo ( f()[], f()())
         Sufixo();
     }
     else if (lookahead.tipo == TKAbreColchete)
@@ -932,15 +905,12 @@ void Sufixo()
     }
     else if (lookahead.tipo == TKDuploMais)
     {
-        // pós-incremento: x++
         match(TKDuploMais);
     }
     else if (lookahead.tipo == TKDuploMenos)
     {
-        // pós-decremento: x--
         match(TKDuploMenos);
     }
-    // ε — sem sufixo
 }
 
 void ArrayAcesso()

@@ -103,7 +103,7 @@ char nome[100][20]={"","TKId","TKvoid","TKInt","TKFloat",
 ,"TKNumDouble","TKNegate", "TKUnequal", "TKNumFloat"
 ,"TKEComercial","TKAND","TKEIgual","TKMaior"
 ,"TKShiftR","TKShiftL","TKMaiorIgual","TKShiftRIgual"
-,"TKMenor","TKMenorIgual","TKShiftLIgual"
+,"TKMenorIgual","TKMenor","TKShiftLIgual"
 ,"TKOR","TKORIgual","TKPipe","TKTypedef","TKStruct"
 ,"TKTrue","TKFalse","TKSizeof","TKDuploMenos","TKArrow"
 ,"TKDiferenca","TKDiferencaIgual","TKDivisao"
@@ -114,7 +114,7 @@ char nome[100][20]={"","TKId","TKvoid","TKInt","TKFloat",
 int pos = 0;
 
 int tk;
-char lex[20];
+char lex[50];
 int lin=1;
 int col=1;
 FILE *arqin;
@@ -163,16 +163,12 @@ while (strcmp("fimtabela",lista_pal[postab].palavra)!=0)
 return TKId;
 }
 
-
-void getToken(); // protótipos
-void proxC();
-
 // variáveis globais para retrocesso
 
 typedef struct contexto{long posglobal;
                int tkant;
                char cant;
-               char lexant[20];} tcontexto;
+               char lexant[50];} tcontexto;
 
 tcontexto pilhacon[1000];
 int topcontexto=0;
